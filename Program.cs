@@ -301,7 +301,7 @@ static string BuildSimulationPageHtml(string[] symbols)
 		</div>
 
 		<div class="row">
-			<div class="col s12 m4">
+			<div class="col s12 m3">
 				<div class="input-field">
 					<select id="years-select">
 						<option value="1">1 year</option>
@@ -328,13 +328,19 @@ static string BuildSimulationPageHtml(string[] symbols)
 					<label>Investment period</label>
 				</div>
 			</div>
-			<div class="col s12 m4">
+			<div class="col s12 m3">
 				<div class="input-field">
 					<input id="annual-return" type="number" min="0" max="30" step="0.1" value="10" />
 					<label for="annual-return" class="active">Expected annual return (%)</label>
 				</div>
 			</div>
-			<div class="col s12 m4" style="padding-top: 18px;">
+			<div class="col s12 m3">
+				<div class="input-field">
+					<input id="brokerage-fee" type="number" min="0" step="0.01" value="0" />
+					<label for="brokerage-fee" class="active">Brokerage fee ($)</label>
+				</div>
+			</div>
+			<div class="col s12 m3" style="padding-top: 18px;">
 				<button id="calculate-btn" class="waves-effect waves-light btn teal darken-2">
 					<i class="material-icons left">calculate</i>
 					Calculate
