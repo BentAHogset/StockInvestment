@@ -1,0 +1,19 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "build StockInvestment",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "${workspaceFolder}/StockInvestment.csproj"
+      ],
+      "problemMatcher": "$msCompile",
+      "group": "build",
+      "presentation": {
+        "reveal": "silent"
+      }
+    }
+  ]
+}
