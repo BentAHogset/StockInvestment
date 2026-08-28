@@ -50,3 +50,33 @@ export async function getHistory(symbol: string): Promise<HistoryResponse> {
   if (!response.ok) throw new Error('Kunne ikke hente historikk.')
   return response.json() as Promise<HistoryResponse>
 }
+
+export type ScenarioAssetInput = {
+  ticker: string
+  investedAmount: number
+  valueAmount: number
+}
+
+export type Scenario = {
+  id: number
+  name: string
+  horizon: number | null
+  assets: ScenarioAssetInput[]
+  created: string | null
+}
+
+export async function createScenario(name: string, years: number, assets: ScenarioAssetInput[]): Promise<Scenario> {
+  const response = await fetch('/api/scenarios', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, years, assets }),
+  })
+  if (!response.ok) throw new Error('Kunne ikke lagre scenarioet.')
+  return response.json() as Promise<Scenario>
+}
+
+export async function getScenarios(): Promise<Scenario[]> {
+  const response = await fetch('/api/scenarios')
+  if (!response.ok) throw new Error('Kunne ikke hente scenarioene.')
+  return response.json() as Promise<Scenario[]>
+}

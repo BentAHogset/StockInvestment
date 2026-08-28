@@ -5,10 +5,12 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <SpaRoot>frontend</SpaRoot>
+    <UserSecretsId>stockinvestment-scenarios</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="ModelContextProtocol.AspNetCore" Version="1.4.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.0" />
   </ItemGroup>
 
   <!-- SPA sources are built separately into wwwroot, not shipped as .NET content -->

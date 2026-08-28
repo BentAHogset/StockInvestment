@@ -1,5 +1,13 @@
 # React + TypeScript + Vite
 
+The API stores scenarios in Azure SQL using the `ConnectionStrings:Scenarios` connection string. Configure it locally with user secrets before starting the backend:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:Scenarios" "<azure-sql-connection-string>" --project ..\StockInvestment.csproj
+```
+
+The connection string should target the database containing the `Scenario` and `Asset` tables. Do not commit it to `appsettings.json`.
+
 This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
 
 Currently, two official plugins are available:
