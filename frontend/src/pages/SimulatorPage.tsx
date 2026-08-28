@@ -1,0 +1,84 @@
+import { useState } from 'react'
+import { type PlanResponse } from '../api'
+import { futureValue, money } from '../calculations/investmentCalculations'
+import Metric from '../components/Metric'
+
+type SimulatorPageProps = {
+  data: PlanResponse
+}
+
+type SimulationRow = {
+  symbol: string
+  monthly: number
+  invested: number
+  projected: number
+  profit: number
+}
+
+export default function SimulatorPage({ data }: SimulatorPageProps) {
+  const [years, setYears] = useState(10)
+  const [annualReturn, setAnnualReturn] = useState(10)
+  const [amounts, setAmounts] = useState<Record<string, number>>(
+    () => Object.fromEntries(data.plan.topStocks.map(stock => [stock.symbol, 50])),
+  )
+
+  const rows: SimulationRow[] = data.plan.topStocks.map(stock => {
+    const monthly = amounts[stock.symbol] || 0
+    const invested = monthly * 12 * years
+    const projected = futureValue(monthly, annualReturn, years)
+
+    return { symbol: stock.symbol, monthly, invested, projected, profit: projected - invested }
+  })
+
+  const totals = rows.reduce(
+    (sum, row) => ({
+      monthly: sum.monthly + row.monthly,
+      invested: sum.invested + row.invested,
+      projected: sum.projected + row.projected,
+    }),
+    { monthly: 0, invested: 0, projected: 0 },
+  )
+
+  return (
+    <section className="simulator">
+      <div className="section-heading">
+        <div><p className="eyebrow">INVESTMENT LAB / 03</p><h1>Build a scenario.</h1></div>
+        <p className="lede compact">Adjust the inputs and see what steady contributions could become over time.</p>
+      </div>
+
+      <div className="controls">
+        <label>Horizon
+          <select value={years} onChange={event => setYears(Number(event.target.value))}>
+            {Array.from({ length: 20 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} years</option>)}
+          </select>
+        </label>
+        <label>Expected annual return
+          <input type="number" min="0" max="30" step="0.1" value={annualReturn} onChange={event => setAnnualReturn(Number(event.target.value))} />%
+        </label>
+      </div>
+
+      <div className="metrics simulator-metrics">
+        <Metric label="Total monthly" value={money.format(totals.monthly)} />
+        <Metric label="Total invested" value={money.format(totals.invested)} />
+        <Metric label="Projected value" value={money.format(totals.projected)} accent />
+      </div>
+
+      <div className="table-wrap">
+        <table>
+          <thead><tr><th>Asset</th><th>Monthly</th><th>Invested</th><th>Projected value</th><th>Estimated profit</th></tr></thead>
+          <tbody>
+            {rows.map(row => (
+              <tr key={row.symbol}>
+                <td><strong>{row.symbol}</strong></td>
+                <td><input className="amount-input" type="number" min="0" step="1" value={row.monthly} onChange={event => setAmounts({ ...amounts, [row.symbol]: Math.max(0, Number(event.target.value)) })} /></td>
+                <td>{money.format(row.invested)}</td>
+                <td>{money.format(row.projected)}</td>
+                <td className="positive">{money.format(row.profit)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  )
+}
