@@ -162,6 +162,8 @@ public sealed class StockScannerTools
             .Take(normalizedTopCount)
             .ToArray();
 
+        ranked = await EnrichWithEstimatedReturnsAsync(ranked, cancellationToken);
+
         var rawWeights = Enumerable.Range(0, ranked.Length)
             .Select(i => Math.Max(1m, 12m - i))
             .ToArray();
@@ -242,6 +244,8 @@ public sealed class StockScannerTools
             .Take(normalizedTopCount)
             .ToArray();
 
+        ranked = await EnrichWithEstimatedReturnsAsync(ranked, cancellationToken);
+
         var scoreTotal = ranked.Sum(r => Math.Max(1, r.ReliabilityScore));
         var allocation = new List<InvestmentAllocation>(ranked.Length);
         decimal allocated = 0m;
@@ -273,5 +277,42 @@ public sealed class StockScannerTools
             Allocation: allocation,
             Guidance: "High-risk strategy: extreme volatility is expected. Reassess monthly and cap losses with strict position sizing."
         );
+    }
+
+    // Analyst target price is weighted heavily; 1-year historical return only nudges the estimate
+    private async Task<TopStockRecommendation[]> EnrichWithEstimatedReturnsAsync(
+        TopStockRecommendation[] ranked,
+        CancellationToken cancellationToken)
+    {
+        var enriched = await Task.WhenAll(ranked.Select(async stock =>
+        {
+            decimal? targetMeanPrice = null;
+            decimal? oneYearReturn = null;
+
+            try
+            {
+                targetMeanPrice = await _yahooQuoteService.GetAnalystTargetAsync(stock.Symbol, cancellationToken);
+                var history = await _yahooQuoteService.GetHistoryAsync(stock.Symbol, cancellationToken);
+                oneYearReturn = history?.OneYearReturnPercent;
+            }
+            catch
+            {
+                // best-effort enrichment; fall back to whatever data is already on the stock
+            }
+
+            var impliedAnnualReturn = targetMeanPrice.HasValue && stock.LastPrice is decimal lastPrice && lastPrice > 0m
+                ? ((targetMeanPrice.Value / lastPrice) - 1m) * 100m
+                : (decimal?)null;
+
+            var estimated = impliedAnnualReturn.HasValue
+                ? (0.95m * impliedAnnualReturn.Value) + (0.05m * (oneYearReturn ?? impliedAnnualReturn.Value))
+                : oneYearReturn;
+
+            var clamped = estimated.HasValue ? Math.Clamp(estimated.Value, -50m, 60m) : (decimal?)null;
+
+            return stock with { TargetMeanPrice = targetMeanPrice, EstimatedAnnualReturnPercent = clamped };
+        }));
+
+        return enriched;
     }
 }

@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
 using StockInvestment.Mcp;
+using StockInvestment.Services;
 
 namespace StockInvestment.Controllers;
 
@@ -8,10 +9,12 @@ namespace StockInvestment.Controllers;
 public sealed class InvestmentController : ControllerBase
 {
 	private readonly StockScannerTools _stockScannerTools;
+	private readonly YahooFinanceQuoteService _yahooQuoteService;
 
-	public InvestmentController(StockScannerTools stockScannerTools)
+	public InvestmentController(StockScannerTools stockScannerTools, YahooFinanceQuoteService yahooQuoteService)
 	{
 		_stockScannerTools = stockScannerTools;
+		_yahooQuoteService = yahooQuoteService;
 	}
 
 	[HttpGet("plan")]
@@ -42,5 +45,12 @@ public sealed class InvestmentController : ControllerBase
 			},
 			Plan = plan
 		});
+	}
+
+	[HttpGet("history/{symbol}")]
+	public async Task<IActionResult> GetHistory(string symbol, CancellationToken cancellationToken = default)
+	{
+		var history = await _yahooQuoteService.GetHistoryAsync(symbol, cancellationToken);
+		return history is null ? NotFound() : Ok(history);
 	}
 }

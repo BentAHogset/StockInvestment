@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { type PlanResponse } from '../api'
 import { futureValue, money } from '../calculations/investmentCalculations'
 import Metric from '../components/Metric'
+import HistoryModal from '../components/HistoryModal'
 
 type SimulatorPageProps = {
   data: PlanResponse
@@ -10,6 +11,7 @@ type SimulatorPageProps = {
 type SimulationRow = {
   symbol: string
   monthly: number
+  annualReturn: number
   invested: number
   projected: number
   profit: number
@@ -21,13 +23,24 @@ export default function SimulatorPage({ data }: SimulatorPageProps) {
   const [amounts, setAmounts] = useState<Record<string, number>>(
     () => Object.fromEntries(data.plan.topStocks.map(stock => [stock.symbol, 50])),
   )
+  const [returns, setReturns] = useState<Record<string, number>>(
+    () => Object.fromEntries(data.plan.topStocks.map(stock => [stock.symbol, stock.estimatedAnnualReturnPercent ?? annualReturn])),
+  )
+  const [openSymbol, setOpenSymbol] = useState<string | null>(null)
+
+  // updating the default re-applies it to every asset, individual overrides still possible below
+  const handleDefaultReturnChange = (value: number) => {
+    setAnnualReturn(value)
+    setReturns(previous => Object.fromEntries(Object.keys(previous).map(symbol => [symbol, value])))
+  }
 
   const rows: SimulationRow[] = data.plan.topStocks.map(stock => {
     const monthly = amounts[stock.symbol] || 0
+    const rate = returns[stock.symbol] ?? annualReturn
     const invested = monthly * 12 * years
-    const projected = futureValue(monthly, annualReturn, years)
+    const projected = futureValue(monthly, rate, years)
 
-    return { symbol: stock.symbol, monthly, invested, projected, profit: projected - invested }
+    return { symbol: stock.symbol, monthly, annualReturn: rate, invested, projected, profit: projected - invested }
   })
 
   const totals = rows.reduce(
@@ -35,8 +48,9 @@ export default function SimulatorPage({ data }: SimulatorPageProps) {
       monthly: sum.monthly + row.monthly,
       invested: sum.invested + row.invested,
       projected: sum.projected + row.projected,
+      profit: sum.profit + row.profit,
     }),
-    { monthly: 0, invested: 0, projected: 0 },
+    { monthly: 0, invested: 0, projected: 0, profit: 0 },
   )
 
   return (
@@ -53,7 +67,7 @@ export default function SimulatorPage({ data }: SimulatorPageProps) {
           </select>
         </label>
         <label>Expected annual return
-          <input type="number" min="0" max="30" step="0.1" value={annualReturn} onChange={event => setAnnualReturn(Number(event.target.value))} />%
+          <input type="number" min="0" max="30" step="0.1" value={annualReturn} onChange={event => handleDefaultReturnChange(Number(event.target.value))} />%
         </label>
       </div>
 
@@ -61,24 +75,28 @@ export default function SimulatorPage({ data }: SimulatorPageProps) {
         <Metric label="Total monthly" value={money.format(totals.monthly)} />
         <Metric label="Total invested" value={money.format(totals.invested)} />
         <Metric label="Projected value" value={money.format(totals.projected)} accent />
+        <Metric label="Estimated profit" value={money.format(totals.profit)} accent={totals.profit >= 0} negative={totals.profit < 0} />
       </div>
 
       <div className="table-wrap">
         <table>
-          <thead><tr><th>Asset</th><th>Monthly</th><th>Invested</th><th>Projected value</th><th>Estimated profit</th></tr></thead>
+          <thead><tr><th>Asset</th><th>Monthly</th><th>Expected return</th><th>Invested</th><th>Projected value</th><th>Estimated profit</th></tr></thead>
           <tbody>
             {rows.map(row => (
               <tr key={row.symbol}>
-                <td><strong>{row.symbol}</strong></td>
+                <td><button className="symbol-link" onClick={() => setOpenSymbol(row.symbol)}>{row.symbol}</button></td>
                 <td><input className="amount-input" type="number" min="0" step="1" value={row.monthly} onChange={event => setAmounts({ ...amounts, [row.symbol]: Math.max(0, Number(event.target.value)) })} /></td>
+                <td><input className="amount-input" type="number" min="0" max="30" step="0.1" value={row.annualReturn} onChange={event => setReturns({ ...returns, [row.symbol]: Number(event.target.value) })} />%</td>
                 <td>{money.format(row.invested)}</td>
                 <td>{money.format(row.projected)}</td>
-                <td className="positive">{money.format(row.profit)}</td>
+                <td className={row.profit >= 0 ? 'positive' : 'negative'}>{money.format(row.profit)}</td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
+
+      {openSymbol && <HistoryModal symbol={openSymbol} onClose={() => setOpenSymbol(null)} />}
     </section>
   )
 }
