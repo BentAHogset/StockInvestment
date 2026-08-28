@@ -120,6 +120,103 @@ public sealed class YahooFinanceQuoteService
         return snapshots;
     }
 
+    public async Task<decimal?> GetAnalystTargetAsync(string symbol, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.GetAsync(
+            $"v10/finance/quoteSummary/{Uri.EscapeDataString(symbol)}?modules=financialData",
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+        if (!document.RootElement.TryGetProperty("quoteSummary", out var quoteSummary) ||
+            !quoteSummary.TryGetProperty("result", out var resultArray) ||
+            resultArray.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var resultNode = resultArray.EnumerateArray().FirstOrDefault();
+        if (resultNode.ValueKind != JsonValueKind.Object ||
+            !resultNode.TryGetProperty("financialData", out var financialData) ||
+            !financialData.TryGetProperty("targetMeanPrice", out var targetNode) ||
+            !targetNode.TryGetProperty("raw", out var rawNode) ||
+            !rawNode.TryGetDecimal(out var targetMeanPrice))
+        {
+            return null;
+        }
+
+        return targetMeanPrice;
+    }
+
+    public async Task<StockHistory?> GetHistoryAsync(string symbol, CancellationToken cancellationToken = default)
+    {
+        using var response = await _httpClient.GetAsync(
+            $"v8/finance/chart/{Uri.EscapeDataString(symbol)}?range=1y&interval=1d",
+            cancellationToken);
+
+        if (!response.IsSuccessStatusCode)
+        {
+            return null;
+        }
+
+        using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+        using var document = await JsonDocument.ParseAsync(stream, cancellationToken: cancellationToken);
+
+        if (!document.RootElement.TryGetProperty("chart", out var chart) ||
+            !chart.TryGetProperty("result", out var resultArray) ||
+            resultArray.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var resultNode = resultArray.EnumerateArray().FirstOrDefault();
+        if (resultNode.ValueKind != JsonValueKind.Object ||
+            !resultNode.TryGetProperty("timestamp", out var timestampArray) ||
+            timestampArray.ValueKind != JsonValueKind.Array ||
+            !resultNode.TryGetProperty("indicators", out var indicatorsNode) ||
+            !indicatorsNode.TryGetProperty("quote", out var quoteArray) ||
+            quoteArray.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var quoteNode = quoteArray.EnumerateArray().FirstOrDefault();
+        if (quoteNode.ValueKind != JsonValueKind.Object ||
+            !quoteNode.TryGetProperty("close", out var closeArray) ||
+            closeArray.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var timestamps = timestampArray.EnumerateArray().ToArray();
+        var closes = closeArray.EnumerateArray().ToArray();
+        var points = new List<StockHistoryPoint>(timestamps.Length);
+
+        for (var i = 0; i < timestamps.Length && i < closes.Length; i++)
+        {
+            if (!timestamps[i].TryGetInt64(out var unixSeconds) ||
+                closes[i].ValueKind != JsonValueKind.Number ||
+                !closes[i].TryGetDecimal(out var close))
+            {
+                continue;
+            }
+
+            points.Add(new StockHistoryPoint(DateTimeOffset.FromUnixTimeSeconds(unixSeconds).UtcDateTime, close));
+        }
+
+        decimal? oneYearReturn = points.Count >= 2 && points[0].Close > 0m
+            ? Math.Round(((points[^1].Close - points[0].Close) / points[0].Close) * 100m, 2)
+            : null;
+
+        return new StockHistory(symbol, oneYearReturn, points);
+    }
+
     private static List<decimal> ExtractCloseSeries(JsonElement responseNode)
     {
         var closes = new List<decimal>();

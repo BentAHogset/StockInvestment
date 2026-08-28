@@ -6,5 +6,7 @@ public sealed record TopStockRecommendation(
     decimal? LastPrice,
     decimal? DailyChangePercent,
     bool UsesLiveQuote,
-    string Reason
+    string Reason,
+    decimal? TargetMeanPrice = null,
+    decimal? EstimatedAnnualReturnPercent = null
 );
