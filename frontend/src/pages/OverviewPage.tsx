@@ -18,7 +18,7 @@ export default function OverviewPage({ data, onSimulate }: OverviewPageProps) {
           <h1>Find your next<br /><em>conviction.</em></h1>
           <p className="lede">A focused shortlist of high-upside opportunities, ranked with live market signals and a disciplined allocation plan.</p>
         </div>
-        <button className="primary-action" onClick={onSimulate}>Open simulator <span>↗</span></button>
+        <button className="primary-action" onClick={onSimulate}>Open scenario <span>↗</span></button>
       </section>
 
       <section className="metrics">
