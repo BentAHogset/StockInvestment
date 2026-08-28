@@ -38,7 +38,11 @@ builder.Services.AddControllers();
 
 var app = builder.Build();
 
+app.UseDefaultFiles();
+app.UseStaticFiles();
+
 app.MapMcp("/mcp");
 app.MapControllers();
+app.MapFallbackToFile("index.html"); // let the React SPA handle any non-API route
 
 app.Run();
