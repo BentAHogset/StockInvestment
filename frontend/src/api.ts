@@ -32,7 +32,9 @@ export type PlanResponse = {
 }
 
 export async function getPlan(strategy = 'aggressive'): Promise<PlanResponse> {
-  const response = await fetch(`/api/plan?topCount=10&strategy=${strategy}`)
+  const response = await fetch(`/api/plan?topCount=10&strategy=${strategy}`, {
+    cache: 'no-store',
+  })
   if (!response.ok) throw new Error('Kunne ikke hente investeringsplanen.')
   return response.json() as Promise<PlanResponse>
 }
@@ -46,7 +48,9 @@ export type HistoryResponse = {
 }
 
 export async function getHistory(symbol: string): Promise<HistoryResponse> {
-  const response = await fetch(`/api/history/${symbol}`)
+  const response = await fetch(`/api/history/${symbol}`, {
+    cache: 'no-store',
+  })
   if (!response.ok) throw new Error('Kunne ikke hente historikk.')
   return response.json() as Promise<HistoryResponse>
 }
@@ -76,7 +80,9 @@ export async function createScenario(name: string, years: number, assets: Scenar
 }
 
 export async function getScenarios(): Promise<Scenario[]> {
-  const response = await fetch('/api/scenarios')
+  const response = await fetch('/api/scenarios', {
+    cache: 'no-store',
+  })
   if (!response.ok) throw new Error('Kunne ikke hente scenarioene.')
   return response.json() as Promise<Scenario[]>
 }

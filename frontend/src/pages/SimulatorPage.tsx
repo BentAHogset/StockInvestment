@@ -4,19 +4,51 @@ import { getScenarios, type PlanResponse, type Scenario } from '../api'
 type SimulatorPageProps = {
   data: PlanResponse
   onBuildScenario: () => void
+  refreshVersion: number
 }
 
-export default function SimulatorPage({ onBuildScenario }: SimulatorPageProps) {
+export default function SimulatorPage({ onBuildScenario, refreshVersion }: SimulatorPageProps) {
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    getScenarios()
-      .then(setScenarios)
-      .catch((reason: Error) => setError(reason.message))
-      .finally(() => setLoading(false))
-  }, [])
+    let cancelled = false
+
+    const fetchScenarios = async () => {
+      setLoading(true)
+      try {
+        const data = await getScenarios()
+        if (!cancelled) {
+          setScenarios(data)
+          setError('')
+        }
+      } catch (reason) {
+        if (!cancelled) {
+          setError((reason as Error).message)
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false)
+        }
+      }
+    }
+
+    fetchScenarios()
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchScenarios()
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
+    return () => {
+      cancelled = true
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [refreshVersion])
 
   return (
     <section className="simulator">
