@@ -1,4 +1,6 @@
 using ModelContextProtocol.AspNetCore;
+using Microsoft.EntityFrameworkCore;
+using StockInvestment.Data;
 using StockInvestment.Mcp;
 using StockInvestment.Services;
 
@@ -10,6 +12,11 @@ builder.Services
 	.WithTools<StockScannerTools>();
 
 builder.Services.AddTransient<StockScannerTools>();
+var scenariosConnectionString = builder.Configuration.GetConnectionString("Scenarios")
+	?? throw new InvalidOperationException("ConnectionStrings:Scenarios must be configured for Azure SQL.");
+builder.Services.AddDbContext<ScenarioDbContext>(options =>
+	options.UseSqlServer(scenariosConnectionString));
+builder.Services.AddScoped<ScenarioRepository>();
 
 builder.Services.AddHttpClient<StooqQuoteService>((serviceProvider, client) =>
 {

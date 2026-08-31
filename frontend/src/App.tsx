@@ -36,7 +36,7 @@ function App() {
       {error && <div className="error">{error}</div>}
       {!loading && !error && data && page === 'overview' && <OverviewPage data={data} onSimulate={() => navigate('simulate')} />}
       {!loading && !error && data && page === 'simulate' && <SimulatorPage data={data} onBuildScenario={() => navigate('build')} />}
-      {!loading && !error && data && page === 'build' && <ScenarioBuilderPage data={data} />}
+      {!loading && !error && data && page === 'build' && <ScenarioBuilderPage data={data} onScenarioSaved={() => navigate('simulate')} />}
     </main>
   )
 }

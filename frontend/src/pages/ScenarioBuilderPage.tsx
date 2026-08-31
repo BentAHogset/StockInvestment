@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { type PlanResponse } from '../api'
+import { createScenario, type PlanResponse } from '../api'
 import { futureValue, money } from '../calculations/investmentCalculations'
 import Metric from '../components/Metric'
 import HistoryModal from '../components/HistoryModal'
 
 type ScenarioBuilderPageProps = {
   data: PlanResponse
+  onScenarioSaved: () => void
 }
 
 type SimulationRow = {
@@ -17,12 +18,14 @@ type SimulationRow = {
   profit: number
 }
 
-export default function ScenarioBuilderPage({ data }: ScenarioBuilderPageProps) {
+export default function ScenarioBuilderPage({ data, onScenarioSaved }: ScenarioBuilderPageProps) {
   const [years, setYears] = useState(10)
+  const [name, setName] = useState('My scenario')
   const [amounts, setAmounts] = useState<Record<string, number>>(
     () => Object.fromEntries(data.plan.topStocks.map(stock => [stock.symbol, 50])),
   )
   const [openSymbol, setOpenSymbol] = useState<string | null>(null)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
 
   const rows: SimulationRow[] = data.plan.topStocks.map(stock => {
     const monthly = amounts[stock.symbol] || 0
@@ -51,6 +54,9 @@ export default function ScenarioBuilderPage({ data }: ScenarioBuilderPageProps) 
       </div>
 
       <div className="controls">
+        <label>Name
+          <input value={name} maxLength={100} onChange={event => setName(event.target.value)} />
+        </label>
         <label>Horizon
           <select value={years} onChange={event => setYears(Number(event.target.value))}>
             {Array.from({ length: 20 }, (_, index) => <option key={index + 1} value={index + 1}>{index + 1} years</option>)}
@@ -83,9 +89,22 @@ export default function ScenarioBuilderPage({ data }: ScenarioBuilderPageProps) 
       </div>
 
       <div className="simulator-actions">
-        <button className="primary-action" onClick={() => console.log('TODO: persist scenario', { years, rows })}>
-          Save scenario <span>↗</span>
+        <button
+          className="primary-action"
+          disabled={saveState === 'saving'}
+          onClick={() => {
+            setSaveState('saving')
+            createScenario(name, years, rows.map(row => ({ ticker: row.symbol, investedAmount: row.invested, valueAmount: row.projected })))
+              .then(() => {
+                setSaveState('saved')
+                onScenarioSaved()
+              })
+              .catch(() => setSaveState('error'))
+          }}
+        >
+          {saveState === 'saving' ? 'Saving...' : saveState === 'saved' ? 'Saved' : 'Save scenario'} <span>↗</span>
         </button>
+        {saveState === 'error' && <span className="error">Could not save scenario.</span>}
       </div>
 
       {openSymbol && <HistoryModal symbol={openSymbol} onClose={() => setOpenSymbol(null)} />}
