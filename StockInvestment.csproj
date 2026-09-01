@@ -18,6 +18,9 @@
     <Content Remove="$(SpaRoot)/**" />
     <Compile Remove="$(SpaRoot)/**" />
     <None Remove="$(SpaRoot)/**" />
+      <Compile Remove="tests/**" />
+      <Content Remove="tests/**" />
+      <None Remove="tests/**" />
   </ItemGroup>
 
   <Target Name="NpmInstall" BeforeTargets="Build;Publish" Condition="!Exists('$(SpaRoot)/node_modules')">

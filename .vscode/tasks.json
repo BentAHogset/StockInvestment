@@ -7,7 +7,7 @@
       "command": "dotnet",
       "args": [
         "build",
-        "${workspaceFolder}/StockInvestment.csproj"
+        "${workspaceFolder}/StockInvestment.sln"
       ],
       "problemMatcher": "$msCompile",
       "group": "build",
