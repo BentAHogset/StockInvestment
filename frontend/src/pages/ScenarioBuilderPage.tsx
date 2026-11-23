@@ -1,11 +1,12 @@
-import { useState } from 'react'
-import { createScenario, type PlanResponse } from '../api'
+import { useEffect, useState } from 'react'
+import { createScenario, getScenario, updateScenario, type PlanResponse } from '../api'
 import { futureValue, money } from '../calculations/investmentCalculations'
 import Metric from '../components/Metric'
 import HistoryModal from '../components/HistoryModal'
 
 type ScenarioBuilderPageProps = {
   data: PlanResponse
+  scenarioId: number | null
   onScenarioSaved: () => void
 }
 
@@ -18,7 +19,7 @@ type SimulationRow = {
   profit: number
 }
 
-export default function ScenarioBuilderPage({ data, onScenarioSaved }: ScenarioBuilderPageProps) {
+export default function ScenarioBuilderPage({ data, scenarioId, onScenarioSaved }: ScenarioBuilderPageProps) {
   const [years, setYears] = useState(10)
   const [name, setName] = useState('My scenario')
   const [amounts, setAmounts] = useState<Record<string, number>>(
@@ -26,8 +27,57 @@ export default function ScenarioBuilderPage({ data, onScenarioSaved }: ScenarioB
   )
   const [openSymbol, setOpenSymbol] = useState<string | null>(null)
   const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [loadState, setLoadState] = useState<'ready' | 'loading' | 'error'>(scenarioId ? 'loading' : 'ready')
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [editSymbols, setEditSymbols] = useState<string[] | null>(null)
 
-  const rows: SimulationRow[] = data.plan.topStocks.map(stock => {
+  useEffect(() => {
+    if (!scenarioId) {
+      setLoadState('ready')
+      setEditSymbols(null)
+      setYears(10)
+      setName('My scenario')
+      setAmounts(Object.fromEntries(data.plan.topStocks.map(stock => [stock.symbol, 50])))
+      return
+    }
+
+    let cancelled = false
+    setLoadState('loading')
+
+    getScenario(scenarioId)
+      .then(scenario => {
+        if (cancelled) return
+
+        const savedYears = scenario.horizon ?? 10
+        setYears(savedYears)
+        setName(scenario.name)
+
+        const savedAmounts = Object.fromEntries(scenario.assets.map(asset => [
+          asset.ticker,
+          savedYears > 0 ? asset.investedAmount / (savedYears * 12) : 0,
+        ]))
+
+        setEditSymbols(scenario.assets.map(asset => asset.ticker))
+        setAmounts(savedAmounts)
+        setLoadState('ready')
+      })
+      .catch(() => {
+        if (!cancelled) setLoadState('error')
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [scenarioId, data, loadAttempt])
+
+  const visibleStocks = scenarioId
+    ? (editSymbols ?? []).map(symbol => {
+        const stock = data.plan.topStocks.find(item => item.symbol === symbol)
+        return stock ?? { symbol, estimatedAnnualReturnPercent: null }
+      })
+    : data.plan.topStocks
+
+  const rows: SimulationRow[] = visibleStocks.map(stock => {
     const monthly = amounts[stock.symbol] || 0
     const rate = stock.estimatedAnnualReturnPercent ?? 0
     const invested = monthly * 12 * years
@@ -46,10 +96,18 @@ export default function ScenarioBuilderPage({ data, onScenarioSaved }: ScenarioB
     { monthly: 0, invested: 0, projected: 0, profit: 0 },
   )
 
+  if (loadState === 'loading') return <section className="simulator"><p className="loading">Loading scenario...</p></section>
+  if (loadState === 'error') return (
+    <section className="simulator">
+      <p className="error">Could not load this scenario.</p>
+      <button className="secondary-action" onClick={() => setLoadAttempt(attempt => attempt + 1)}>Try again</button>
+    </section>
+  )
+
   return (
     <section className="simulator">
       <div className="section-heading">
-        <div><p className="eyebrow">INVESTMENT LAB / 03</p><h1>Build a scenario.</h1></div>
+        <div><p className="eyebrow">INVESTMENT LAB / 03</p><h1>{scenarioId ? 'Edit scenario.' : 'Build a scenario.'}</h1></div>
         <p className="lede compact">Adjust the inputs and see what steady contributions could become over time.</p>
       </div>
 
@@ -94,7 +152,12 @@ export default function ScenarioBuilderPage({ data, onScenarioSaved }: ScenarioB
           disabled={saveState === 'saving'}
           onClick={() => {
             setSaveState('saving')
-            createScenario(name, years, rows.map(row => ({ ticker: row.symbol, investedAmount: row.invested, valueAmount: row.projected })))
+            const assets = rows.map(row => ({ ticker: row.symbol, investedAmount: row.invested, valueAmount: row.projected }))
+            const save = scenarioId
+              ? updateScenario(scenarioId, name, years, assets)
+              : createScenario(name, years, assets)
+
+            save
               .then(() => {
                 setSaveState('saved')
                 onScenarioSaved()

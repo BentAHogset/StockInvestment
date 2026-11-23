@@ -57,4 +57,51 @@ public sealed class ScenarioRepository
 		await _dbContext.SaveChangesAsync(cancellationToken);
 		return true;
 	}
+
+	public async Task<Scenario?> UpdateAsync(int id, string name, int years, IReadOnlyList<ScenarioAsset> assets, CancellationToken cancellationToken = default)
+	{
+		var scenario = await _dbContext.Scenarios
+			.Include(item => item.Assets)
+			.SingleOrDefaultAsync(item => item.Id == id, cancellationToken);
+
+		if (scenario is null)
+			return null;
+
+		scenario.Name = name;
+		scenario.Horizon = years;
+
+		var existingAssets = scenario.Assets.ToList();
+		foreach (var existing in existingAssets)
+		{
+			var replacement = assets.FirstOrDefault(asset =>
+				string.Equals(asset.Ticker, existing.Ticker, StringComparison.OrdinalIgnoreCase));
+
+			if (replacement is null)
+			{
+				_dbContext.ScenarioAssets.Remove(existing);
+				continue;
+			}
+
+			existing.Invested = replacement.Invested;
+			existing.Value = replacement.Value;
+		}
+
+		var existingTickers = existingAssets
+			.Select(asset => asset.Ticker)
+			.ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+		foreach (var asset in assets.Where(asset => !existingTickers.Contains(asset.Ticker)))
+		{
+			scenario.Assets.Add(new ScenarioAsset
+			{
+				Ticker = asset.Ticker,
+				Invested = asset.Invested,
+				Value = asset.Value,
+				ScenarioId = scenario.Id
+			});
+		}
+
+		await _dbContext.SaveChangesAsync(cancellationToken);
+		return scenario;
+	}
 }

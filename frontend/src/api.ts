@@ -86,3 +86,37 @@ export async function getScenarios(): Promise<Scenario[]> {
   if (!response.ok) throw new Error('Kunne ikke hente scenarioene.')
   return response.json() as Promise<Scenario[]>
 }
+
+export async function getScenario(id: number): Promise<Scenario> {
+  const response = await fetch(`/api/scenarios/${id}`, {
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error('Kunne ikke hente scenarioet.')
+
+  const scenario = await response.json() as {
+    id: number
+    name: string
+    horizon: number | null
+    created: string | null
+    assets: Array<{ ticker: string; investedAmount?: number; valueAmount?: number; invested?: number; value?: number }>
+  }
+
+  return {
+    ...scenario,
+    assets: scenario.assets.map(asset => ({
+      ticker: asset.ticker,
+      investedAmount: asset.investedAmount ?? asset.invested ?? 0,
+      valueAmount: asset.valueAmount ?? asset.value ?? 0,
+    })),
+  }
+}
+
+export async function updateScenario(id: number, name: string, years: number, assets: ScenarioAssetInput[]): Promise<Scenario> {
+  const response = await fetch(`/api/scenarios/${id}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, years, assets }),
+  })
+  if (!response.ok) throw new Error('Kunne ikke oppdatere scenarioet.')
+  return response.json() as Promise<Scenario>
+}
