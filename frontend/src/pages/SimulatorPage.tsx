@@ -4,10 +4,11 @@ import { getScenarios, type PlanResponse, type Scenario } from '../api'
 type SimulatorPageProps = {
   data: PlanResponse
   onBuildScenario: () => void
+  onOpenScenario: (id: number) => void
   refreshVersion: number
 }
 
-export default function SimulatorPage({ onBuildScenario, refreshVersion }: SimulatorPageProps) {
+export default function SimulatorPage({ onBuildScenario, onOpenScenario, refreshVersion }: SimulatorPageProps) {
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -67,7 +68,15 @@ export default function SimulatorPage({ onBuildScenario, refreshVersion }: Simul
             <tbody>
               {scenarios.map(scenario => (
                 <tr key={scenario.id}>
-                  <td><strong>{scenario.name}</strong></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="scenario-name-action"
+                      onClick={() => onOpenScenario(scenario.id)}
+                    >
+                      {scenario.name}
+                    </button>
+                  </td>
                   <td>{scenario.horizon === null ? '—' : `${scenario.horizon} years`}</td>
                   <td>{scenario.assets.length}</td>
                   <td>{scenario.created ? new Date(scenario.created).toLocaleDateString() : '—'}</td>
